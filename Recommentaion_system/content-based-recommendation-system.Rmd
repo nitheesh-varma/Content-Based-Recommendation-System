@@ -1,0 +1,84 @@
+---
+title: "Content-based-recommendation-system"
+output: 
+  html_notebook:
+    toc: yes
+    toc_float: yes
+author: Nitheesh Varma Varadaraju, 
+        Illinois Institute of Technology
+---
+### User Profiles :
+```{r}
+library(lsa)
+users <- read.csv("/Users/nitheeshvarma/Desktop/ratings.csv")
+movies <- read.csv("/Users/nitheeshvarma/Desktop/movies.csv")
+a.no <- 20472877 %% 671
+users_df <- users[users$userId == a.no,]
+movies_df <- movies[movies$movieId %in% users_df$movieId,]
+user_profile_df <- data.frame()
+k <- c("Action", "Adventure", "Animation",
+           "Children", "Comedy", "Crime", "Documentary",
+           "Drama", "Fantasy", "Film-Noir", "Horror", 
+           "IMAX", "Musical", "Mystery", "Romance", 
+           "Sci-Fi", "Thriller", "War", "Western", 
+           "(no genres listed)")
+for (i in k) user_profile_df[[i]] <- as.numeric()
+for (x in row.names(movies_df)){
+  genres <- movies_df[x, c("genres")]
+  genres <- strsplit(genres, "\\|")
+  x <- if (x == "Drama") "Drama" else x
+  for (genre in genres){
+    user_profile_df[as.character(movies_df[x, c("movieId")]), as.character(genre)] = 1
+  }
+}
+user_profile <- colSums(user_profile_df[,], na.rm = TRUE)
+user_profile <- user_profile/nrow(movies_df)
+```
+
+### Movie profiles:
+```{r}
+movie_profile_df <- movies[sample(nrow(movies), 10),]
+movie_profile_tdf <- data.frame()
+q <- c("Action", "Adventure", "Animation",
+           "Children", "Comedy", "Crime", "Documentary",
+           "Drama", "Fantasy", "Film-Noir", "Horror", 
+           "IMAX", "Musical", "Mystery", "Romance", 
+           "Sci-Fi", "Thriller", "War", "Western", 
+           "(no genres listed)")
+for (i in q) movie_profile_tdf[[i]] <- as.numeric()
+for (name in row.names(movie_profile_df)){
+  genres <- movie_profile_df[name, c("genres")]
+  genres <- strsplit(genres, "\\|")
+  for (genre in genres){
+    movie_profile_tdf[as.character(movie_profile_df[name, c("movieId")]), as.character(genre)] = 1
+  }
+}
+
+```
+
+
+### Recommended Movies :
+```{r}
+movie_profile_tdf[is.na(movie_profile_tdf)] <- 0
+movieId_f <- c()
+movieName_f <- c()
+similarity_f <- c()
+
+k <- 1
+for (m in row.names(movie_profile_tdf)){
+  movie_profile <- unlist(movie_profile_tdf[m,])
+  similarity <- lsa::cosine(user_profile, movie_profile)
+  movieId_f[k] <- m
+  movieName_f[k] <- movies[movies$movieId == m, c("title")]
+  similarity_f[k] <- similarity
+  k <- k + 1
+}
+res <- data.frame(MovieId = movieId_f, MovieName = movieName_f, 
+                     Similarity = similarity_f)
+res <- res[order(res$Similarity, decreasing = TRUE),]
+cat("User ID", a.no, "has choosen the  following 10 movies:", row.names(movie_profile_tdf), "\n")
+cat("Among them these 5 movies were recommended:", "\n")
+head(res, 5)
+```
+
+```
